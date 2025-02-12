@@ -2,7 +2,7 @@
 
 First Register On GoKite AI Here : [ Go Kite AI ]()
 
-Please Join Telegram Channel: [SCRIPT HUB](https://t.me/HAMAD_ALPHA)
+Please Join Telegram Channel: [HAMAD ALPHA](https://t.me/HAMAD_ALPHA)
 
 ## Script Features
 
