@@ -90,7 +90,7 @@ async function main() {
         });
 
         if (i < 22) {
-          await new Promise(resolve => setTimeout(resolve, 70000)); // 70 seconds delay
+          await new Promise(resolve => setTimeout(resolve, 20000)); // 20 seconds delay
         }
       }
 
