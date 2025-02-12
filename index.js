@@ -2,10 +2,6 @@ const axios = require('axios');
 const fs = require('fs');
 const figlet = require('figlet');
 const chalk = require('chalk');
-const readline = require('readline').createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
 
 const agents = {
   "deployment_p5J9lz1Zxe7CYEoo0TZpRVay": "Professor 🧠",
@@ -50,7 +46,7 @@ async function reportUsage(wallet, options) {
       headers: { 'Content-Type': 'application/json' }
     });
 
-    console.log(chalk.green('✅Usage data successfully reported!\n'));
+    console.log(chalk.green('✅ Usage data successfully reported!\n'));
   } catch (error) {
     console.error(chalk.red('⚠️ Failed to report usage:'), error.response ? error.response.data : error.message);
   }
@@ -59,36 +55,49 @@ async function reportUsage(wallet, options) {
 async function main() {
   displayAppTitle();
 
-  readline.question(chalk.yellow('🔑 Enter Your Metamask wallet address: '), async (wallet) => {
-    readline.question(chalk.yellow('🔢 No. of interactions with each agent : '), async (input) => {
-      const iterations = parseInt(input) || 1;
-      console.log(chalk.blue(`\n📌 Wallet address: ${wallet}`));
-      console.log(chalk.blue(`📊 Iteractions per agent: ${iterations}\n`));
+  if (!fs.existsSync('nano_wallets.txt')) {
+    console.error(chalk.red('⚠️ Error: nano_wallets.txt file not found!'));
+    return;
+  }
 
-      for (const [agentId, agentName] of Object.entries(agents)) {
-        console.log(chalk.magenta(`\n🤖 Using Agent: ${agentName}`));
-        console.log(chalk.dim('----------------------------------------'));
+  const wallets = fs.readFileSync('nano_wallets.txt', 'utf-8').split('\n').map(addr => addr.trim()).filter(addr => addr);
+  if (wallets.length === 0) {
+    console.error(chalk.red('⚠️ Error: No wallet addresses found in nano_wallets.txt!'));
+    return;
+  }
 
-        for (let i = 0; i < iterations; i++) {
-          console.log(chalk.yellow(`🔄 Iteration-${i + 1}`));
-          const nanya = await sendRandomQuestion(agentId);
-          console.log(chalk.cyan('❓ Query:'), chalk.bold(nanya.question));
-          console.log(chalk.green('💡 Answer:'), chalk.italic(nanya?.response?.content ?? ''));
+  console.log(chalk.blue(`📌 ${wallets.length} wallet addresses loaded from nano_wallets.txt`));
 
-          await reportUsage(wallet.toLowerCase(), {
-            agent_id: agentId,
-            question: nanya.question,
-            response: nanya?.response?.content ?? 'There is no answer'
-          });
+  for (const wallet of wallets) {
+    console.log(chalk.yellow(`
+🚀 Processing wallet: ${wallet}`));
+    
+    for (const [agentId, agentName] of Object.entries(agents)) {
+      console.log(chalk.magenta(`
+🤖 Using Agent: ${agentName}`));
+      console.log(chalk.dim('----------------------------------------'));
+
+      for (let i = 0; i < 23; i++) {
+        console.log(chalk.yellow(`🔄 Iteration-${i + 1} for ${wallet}`));
+        const nanya = await sendRandomQuestion(agentId);
+        console.log(chalk.cyan('❓ Query:'), chalk.bold(nanya.question));
+        console.log(chalk.green('💡 Answer:'), chalk.italic(nanya?.response?.content ?? ''));
+
+        await reportUsage(wallet.toLowerCase(), {
+          agent_id: agentId,
+          question: nanya.question,
+          response: nanya?.response?.content ?? 'There is no answer'
+        });
+
+        if (i < 22) {
+          await new Promise(resolve => setTimeout(resolve, 70000)); // 70 seconds delay
         }
-
-        console.log(chalk.dim('----------------------------------------'));
       }
 
-      console.log('\n ThnakYou For Using Kite Ai Auto Script Please Join TG @scripthub00.');
-      readline.close();
-    });
-  });
+      console.log(chalk.dim('----------------------------------------'));
+    }
+  }
+  console.log(chalk.green('\n✅ All wallets processed successfully!'));
 }
 
 main();
