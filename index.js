@@ -22,13 +22,26 @@ async function sendRandomQuestion(agent) {
     const randomQuestion = randomQuestions[Math.floor(Math.random() * randomQuestions.length)];
 
     const payload = { message: randomQuestion, stream: false };
-    const response = await axios.post(`https://${agent.toLowerCase().replace('_','-')}.stag-vxzy.zettablock.com/main`, payload, {
-      headers: { 'Content-Type': 'application/json' }
-    });
 
-    return { question: randomQuestion, response: response.data.choices[0].message };
+    for (let retry = 0; retry < 3; retry++) {
+      try {
+        const response = await axios.post(`https://${agent.toLowerCase().replace('_','-')}.stag-vxzy.zettablock.com/main`, payload, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        return { question: randomQuestion, response: response.data.choices[0].message };
+      } catch (error) {
+        console.error(chalk.red(`⚠️ API failed, retrying... (${retry + 1}/3)`));
+        await new Promise(resolve => setTimeout(resolve, 5000)); // 5 sec retry delay
+      }
+    }
+
+    console.error(chalk.red('🚨 API failed after 3 retries, skipping this request.'));
+    return null;
+
   } catch (error) {
-    console.error(chalk.red('⚠️ Error:'), error.response ? error.response.data : error.message);
+    console.error(chalk.red('⚠️ Error reading questions:'), error.message);
+    return null;
   }
 }
 
@@ -48,7 +61,7 @@ async function reportUsage(wallet, options) {
 
     console.log(chalk.green('✅ Usage data successfully reported!\n'));
   } catch (error) {
-    console.error(chalk.red('⚠️ Failed to report usage:'), error.response ? error.response.data : error.message);
+    console.error(chalk.red('⚠️ Failed to report usage:'), error.message);
   }
 }
 
@@ -69,19 +82,23 @@ async function main() {
   console.log(chalk.blue(`📌 ${wallets.length} wallet addresses loaded from nano_wallets.txt`));
 
   for (const wallet of wallets) {
-    console.log(chalk.yellow(`
-🚀 Processing wallet: ${wallet}`));
-    
+    console.log(chalk.yellow(`\n🚀 Processing wallet: ${wallet}`));
+
     for (const [agentId, agentName] of Object.entries(agents)) {
-      console.log(chalk.magenta(`
-🤖 Using Agent: ${agentName}`));
+      console.log(chalk.magenta(`\n🤖 Using Agent: ${agentName}`));
       console.log(chalk.dim('----------------------------------------'));
 
       for (let i = 0; i < 23; i++) {
         console.log(chalk.yellow(`🔄 Iteration-${i + 1} for ${wallet}`));
+
         const nanya = await sendRandomQuestion(agentId);
+        if (!nanya) {
+          console.log(chalk.red('🚨 Skipping iteration due to API failure.'));
+          continue;
+        }
+
         console.log(chalk.cyan('❓ Query:'), chalk.bold(nanya.question));
-        console.log(chalk.green('💡 Answer:'), chalk.italic(nanya?.response?.content ?? ''));
+        console.log(chalk.green('💡 Answer:'), chalk.italic(nanya?.response?.content ?? 'No response received'));
 
         await reportUsage(wallet.toLowerCase(), {
           agent_id: agentId,
@@ -90,7 +107,7 @@ async function main() {
         });
 
         if (i < 22) {
-          await new Promise(resolve => setTimeout(resolve, 20000)); // 20 seconds delay
+          await new Promise(resolve => setTimeout(resolve, 20000)); // 20 sec delay
         }
       }
 
