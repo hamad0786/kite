@@ -21,7 +21,7 @@ Please Join Telegram Channel: [HAMAD ALPHA](https://t.me/HAMAD_ALPHA)
    
 2. **Change Directory:**
    ```bash
-   cd Gokite_ai
+   cd kite
    ```
 
 3. **Instal Requires Tool:**
