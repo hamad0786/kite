@@ -22,26 +22,34 @@ async function sendRandomQuestion(agent) {
     const randomQuestion = randomQuestions[Math.floor(Math.random() * randomQuestions.length)];
 
     const payload = { message: randomQuestion, stream: false };
+    let retries = 3;
 
-    for (let retry = 0; retry < 3; retry++) {
+    while (retries > 0) {
       try {
-        const response = await axios.post(`https://${agent.toLowerCase().replace('_','-')}.stag-vxzy.zettablock.com/main`, payload, {
-          headers: { 'Content-Type': 'application/json' }
-        });
+        const response = await axios.post(
+          `https://${agent.toLowerCase().replace('_','-')}.stag-vxzy.zettablock.com/main`,
+          payload,
+          { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
+        );
 
         return { question: randomQuestion, response: response.data.choices[0].message };
       } catch (error) {
-        console.error(chalk.red(`⚠️ API failed, retrying... (${retry + 1}/3)`));
-        await new Promise(resolve => setTimeout(resolve, 5000)); // 5 sec retry delay
+        if (error.response && error.response.status === 504) {
+          console.log(chalk.yellow(`⚠️ 504 Gateway Timeout - Retrying (${4 - retries}/3)...`));
+          retries--;
+          await new Promise(resolve => setTimeout(resolve, 5000)); // 5 sec delay before retry
+        } else {
+          throw error;
+        }
       }
     }
 
-    console.error(chalk.red('🚨 API failed after 3 retries, skipping this request.'));
-    return null;
+    console.log(chalk.red(`❌ Failed after 3 retries.`));
+    return { question: randomQuestion, response: { content: "No response due to timeout." } };
 
   } catch (error) {
-    console.error(chalk.red('⚠️ Error reading questions:'), error.message);
-    return null;
+    console.error(chalk.red('⚠️ Error:'), error.message);
+    return { question: "Unknown", response: { content: "Error fetching question." } };
   }
 }
 
@@ -92,18 +100,19 @@ async function main() {
         console.log(chalk.yellow(`🔄 Iteration-${i + 1} for ${wallet}`));
 
         const nanya = await sendRandomQuestion(agentId);
-        if (!nanya) {
-          console.log(chalk.red('🚨 Skipping iteration due to API failure.'));
+
+        if (!nanya.question) {
+          console.log(chalk.red("⚠️ Skipping due to error fetching question."));
           continue;
         }
 
         console.log(chalk.cyan('❓ Query:'), chalk.bold(nanya.question));
-        console.log(chalk.green('💡 Answer:'), chalk.italic(nanya?.response?.content ?? 'No response received'));
+        console.log(chalk.green('💡 Answer:'), chalk.italic(nanya?.response?.content ?? ''));
 
         await reportUsage(wallet.toLowerCase(), {
           agent_id: agentId,
           question: nanya.question,
-          response: nanya?.response?.content ?? 'There is no answer'
+          response: nanya?.response?.content ?? 'No response'
         });
 
         if (i < 22) {
